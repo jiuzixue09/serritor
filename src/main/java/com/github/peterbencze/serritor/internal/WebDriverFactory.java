@@ -56,6 +56,8 @@ public final class WebDriverFactory {
                 return createChromeDriver(capabilities);
             case FIREFOX:
                 return createFirefoxDriver(capabilities);
+            case REMOTE:
+                return createRemoteWebDriver(capabilities);
             default:
                 throw new IllegalArgumentException("Unsupported browser");
         }
@@ -117,5 +119,26 @@ public final class WebDriverFactory {
      */
     private static FirefoxDriver createFirefoxDriver(final Capabilities capabilities) {
         return new FirefoxDriver(new FirefoxOptions(capabilities));
+    }
+    
+    /**
+     * Creates a <code>RemoteWebDriver</code> instance with the provided properties.
+     *
+     * @param capabilities the browser properties
+     *
+     * @return the preconfigured <code>RemoteWebDriver</code> instance
+     */
+    private static RemoteWebDriver createRemoteWebDriver(final Capabilities capabilities){
+        ChromeOptions options = new ChromeOptions();
+        options.merge(capabilities);
+
+        RemoteWebDriver driver = null;
+        try {
+            driver = new RemoteWebDriver(new URL(capabilities.getCapability("remoteAddress").toString()), options);
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        }
+
+        return driver;
     }
 }
