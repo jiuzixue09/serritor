@@ -23,7 +23,8 @@ public enum Browser {
 
     HTML_UNIT("HtmlUnit"),
     CHROME("Chrome"),
-    FIREFOX("Firefox");
+    FIREFOX("Firefox"),
+    REMOTE("Remote");
 
     private final String textualRepresentation;
 
