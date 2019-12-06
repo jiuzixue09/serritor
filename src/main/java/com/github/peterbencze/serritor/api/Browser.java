@@ -21,7 +21,6 @@ package com.github.peterbencze.serritor.api;
  */
 public enum Browser {
 
-    HTML_UNIT("HtmlUnit"),
     CHROME("Chrome"),
     FIREFOX("Firefox"),
     REMOTE("Remote");

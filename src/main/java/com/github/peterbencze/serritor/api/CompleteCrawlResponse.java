@@ -16,7 +16,7 @@
 
 package com.github.peterbencze.serritor.api;
 
-import net.lightbody.bmp.core.har.HarResponse;
+import org.apache.http.HttpResponse;
 import org.openqa.selenium.WebDriver;
 
 /**
@@ -30,11 +30,11 @@ public final class CompleteCrawlResponse extends PartialCrawlResponse {
     /**
      * Creates a {@link CompleteCrawlResponse} instance from an HAR capture.
      *
-     * @param harResponse the har capture
+     * @param httpResponse the har capture
      * @param webDriver   the <code>WebDriver</code> instance
      */
-    public CompleteCrawlResponse(final HarResponse harResponse, final WebDriver webDriver) {
-        super(harResponse);
+    public CompleteCrawlResponse(final HttpResponse httpResponse, final WebDriver webDriver) {
+        super(httpResponse);
 
         this.webDriver = webDriver;
     }

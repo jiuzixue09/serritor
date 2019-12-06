@@ -16,14 +16,8 @@
 
 package com.github.peterbencze.serritor.api;
 
-import com.gargoylesoftware.htmlunit.WebClient;
 import com.github.peterbencze.serritor.api.CrawlRequest.CrawlRequestBuilder;
-import com.github.peterbencze.serritor.api.event.NetworkErrorEvent;
-import com.github.peterbencze.serritor.api.event.NonHtmlResponseEvent;
-import com.github.peterbencze.serritor.api.event.PageLoadTimeoutEvent;
-import com.github.peterbencze.serritor.api.event.RequestRedirectEvent;
-import com.github.peterbencze.serritor.api.event.ResponseErrorEvent;
-import com.github.peterbencze.serritor.api.event.ResponseSuccessEvent;
+import com.github.peterbencze.serritor.api.event.*;
 import com.github.peterbencze.serritor.internal.CrawlEvent;
 import com.github.peterbencze.serritor.internal.CrawlFrontier;
 import com.github.peterbencze.serritor.internal.CustomCallbackManager;
@@ -35,26 +29,9 @@ import com.github.peterbencze.serritor.internal.crawldelaymechanism.RandomCrawlD
 import com.github.peterbencze.serritor.internal.stats.StatsCounter;
 import com.github.peterbencze.serritor.internal.util.CookieConverter;
 import com.github.peterbencze.serritor.internal.util.stopwatch.Stopwatch;
-import java.io.File;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.nio.charset.UnsupportedCharsetException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import net.lightbody.bmp.BrowserMobProxyServer;
-import net.lightbody.bmp.client.ClientUtil;
-import net.lightbody.bmp.core.har.HarResponse;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.Validate;
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHeaders;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpResponse;
-import org.apache.http.ParseException;
+import org.apache.http.*;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
@@ -64,16 +41,21 @@ import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.eclipse.jetty.http.HttpStatus;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.MutableCapabilities;
-import org.openqa.selenium.Proxy;
-import org.openqa.selenium.TimeoutException;
-import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.*;
 import org.openqa.selenium.WebDriver.Options;
 import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.charset.UnsupportedCharsetException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Provides a skeletal implementation of a crawler to minimize the effort for users to implement
@@ -91,7 +73,6 @@ public abstract class Crawler {
 
     private BasicCookieStore cookieStore;
     private CloseableHttpClient httpClient;
-    private BrowserMobProxyServer proxyServer;
     private WebDriver webDriver;
     private CrawlDelayMechanism crawlDelayMechanism;
     private AtomicBoolean isStopped;
@@ -150,7 +131,7 @@ public abstract class Crawler {
      * will block until the crawler finishes.
      */
     public final void start() {
-        start(Browser.HTML_UNIT);
+        start(Browser.CHROME);
     }
 
     /**
@@ -207,7 +188,6 @@ public abstract class Crawler {
             // want to cause any unwanted side effects)
             MutableCapabilities capabilitiesClone = new MutableCapabilities(capabilities);
 
-            proxyServer = new BrowserMobProxyServer();
 
             // If a user-defined proxy is set, chain it to our internal one
             Proxy proxyCapability = (Proxy) capabilitiesClone.getCapability(CapabilityType.PROXY);
@@ -219,17 +199,7 @@ public abstract class Crawler {
                 LOGGER.debug("Using chained HTTP proxy with address {}:{}", hostname, port);
 
                 httpClientBuilder.setProxy(proxyHost);
-                proxyServer.setChainedProxy(new InetSocketAddress(hostname, port));
             }
-
-            // The internal proxy server must be started before creating the Selenium proxy
-            // because the port is dynamically chosen by the server when it starts
-            proxyServer.start();
-            LOGGER.debug("Internal proxy server started on port {}", proxyServer.getPort());
-
-            // Set our internal proxy
-            capabilitiesClone.setCapability(CapabilityType.PROXY,
-                    ClientUtil.createSeleniumProxy(proxyServer));
 
             httpClient = httpClientBuilder.build();
 
@@ -238,14 +208,6 @@ public abstract class Crawler {
 
             LOGGER.debug("Calling onBrowserInit callback");
             onBrowserInit(webDriver.manage());
-
-            // If the crawl delay strategy is set to adaptive, we check if the browser supports the
-            // Navigation Timing API or not. However HtmlUnit requires a page to be loaded first
-            // before executing JavaScript, so we load a blank page.
-            if (Browser.HTML_UNIT.equals(browser)
-                    && CrawlDelayStrategy.ADAPTIVE.equals(config.getCrawlDelayStrategy())) {
-                webDriver.get(WebClient.ABOUT_BLANK);
-            }
 
             // Must be created here (the adaptive crawl delay strategy depends on the WebDriver)
             crawlDelayMechanism = createCrawlDelayMechanism();
@@ -266,11 +228,6 @@ public abstract class Crawler {
                 if (webDriver != null) {
                     LOGGER.debug("Closing browser");
                     webDriver.quit();
-                }
-
-                if (proxyServer != null && proxyServer.isStarted()) {
-                    LOGGER.debug("Stopping proxy server");
-                    proxyServer.stop();
                 }
 
                 runTimeStopwatch.stop();
@@ -296,7 +253,7 @@ public abstract class Crawler {
      * will block until the crawler finishes.
      */
     public final void resume() {
-        resume(Browser.HTML_UNIT);
+        resume(Browser.CHROME);
     }
 
     /**
@@ -388,7 +345,6 @@ public abstract class Crawler {
         Validate.notNull(destination, "The destination parameter cannot be null.");
 
         LOGGER.debug("Downloading file from {} to {}", source, destination);
-
         HttpGet request = new HttpGet(source);
         try (CloseableHttpResponse response = httpClient.execute(request)) {
             HttpEntity entity = response.getEntity();
@@ -455,7 +411,12 @@ public abstract class Crawler {
                     continue;
                 }
 
-                proxyServer.newHar();
+                if (HttpStatus.isClientError(statusCode) || HttpStatus.isServerError(statusCode)) {
+                    handleResponseError(new ResponseErrorEvent(currentCandidate,
+                            new CompleteCrawlResponse(httpHeadResponse, webDriver)));
+
+                    continue;
+                }
 
                 LOGGER.debug("Opening URL {} in browser", candidateUrl);
                 try {
@@ -469,48 +430,12 @@ public abstract class Crawler {
 
                     continue;
                 }
+                handleResponseSuccess(new ResponseSuccessEvent(currentCandidate,
+                        new CompleteCrawlResponse(httpHeadResponse, webDriver)));
             } finally {
                 HttpClientUtils.closeQuietly(httpHeadResponse);
             }
 
-            HarResponse harResponse = proxyServer.getHar().getLog().getEntries().stream()
-                    .filter(harEntry -> candidateUrl.equals(harEntry.getRequest().getUrl()))
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException("No HAR entry for request URL"))
-                    .getResponse();
-            if (harResponse.getError() != null) {
-                handleNetworkError(new NetworkErrorEvent(currentCandidate, harResponse.getError()));
-
-                continue;
-            }
-
-            // We need to check both the redirect URL in the HAR response and the URL of the
-            // loaded page to see if there was a JS redirect
-            String redirectUrl = harResponse.getRedirectURL();
-            String loadedPageUrl = webDriver.getCurrentUrl();
-            if (!redirectUrl.isEmpty() || !loadedPageUrl.equals(candidateUrl)) {
-                if (redirectUrl.isEmpty()) {
-                    redirectUrl = loadedPageUrl;
-                }
-
-                CrawlRequest request = createCrawlRequestForRedirect(currentCandidate, redirectUrl);
-
-                handleRequestRedirect(new RequestRedirectEvent(currentCandidate,
-                        new PartialCrawlResponse(harResponse), request));
-
-                continue;
-            }
-
-            int statusCode = harResponse.getStatus();
-            if (HttpStatus.isClientError(statusCode) || HttpStatus.isServerError(statusCode)) {
-                handleResponseError(new ResponseErrorEvent(currentCandidate,
-                        new CompleteCrawlResponse(harResponse, webDriver)));
-
-                continue;
-            }
-
-            handleResponseSuccess(new ResponseSuccessEvent(currentCandidate,
-                    new CompleteCrawlResponse(harResponse, webDriver)));
         }
     }
 

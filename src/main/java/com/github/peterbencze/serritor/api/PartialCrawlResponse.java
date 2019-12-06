@@ -16,15 +16,13 @@
 
 package com.github.peterbencze.serritor.api;
 
-import java.util.ArrayList;
+import org.apache.http.Header;
+import org.apache.http.HttpResponse;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import net.lightbody.bmp.core.har.HarResponse;
-import org.apache.http.Header;
-import org.apache.http.HttpResponse;
-import org.apache.http.message.BasicHeader;
 
 /**
  * Represents a partial response that only contains HTTP header information.
@@ -46,19 +44,6 @@ public class PartialCrawlResponse {
         headers = Arrays.asList(httpResponse.getAllHeaders());
     }
 
-    /**
-     * Creates a {@link PartialCrawlResponse} instance from an HAR capture.
-     *
-     * @param harResponse the HAR capture
-     */
-    public PartialCrawlResponse(final HarResponse harResponse) {
-        statusCode = harResponse.getStatus();
-        statusText = harResponse.getStatusText();
-        headers = new ArrayList<>();
-        harResponse.getHeaders()
-                .forEach(header -> headers.add(new BasicHeader(header.getName(),
-                        header.getValue())));
-    }
 
     /**
      * Returns the HTTP status code of the response.

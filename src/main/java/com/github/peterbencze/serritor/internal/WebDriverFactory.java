@@ -17,16 +17,18 @@
 package com.github.peterbencze.serritor.internal;
 
 import com.github.peterbencze.serritor.api.Browser;
-import java.util.List;
-import java.util.Map;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
-import org.openqa.selenium.htmlunit.HtmlUnitDriver;
-import org.openqa.selenium.remote.DesiredCapabilities;
+import org.openqa.selenium.remote.RemoteWebDriver;
+
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Provides preconfigured {@link WebDriver} instances.
@@ -50,8 +52,6 @@ public final class WebDriverFactory {
     public static WebDriver createWebDriver(final Browser browser,
                                             final Capabilities capabilities) {
         switch (browser) {
-            case HTML_UNIT:
-                return createHtmlUnitDriver(capabilities);
             case CHROME:
                 return createChromeDriver(capabilities);
             case FIREFOX:
@@ -61,21 +61,6 @@ public final class WebDriverFactory {
             default:
                 throw new IllegalArgumentException("Unsupported browser");
         }
-    }
-
-    /**
-     * Creates a <code>HtmlUnitDriver</code> instance with the provided properties.
-     *
-     * @param extraCapabilities the browser properties
-     *
-     * @return the preconfigured <code>HtmlUnitDriver</code> instance
-     */
-    private static HtmlUnitDriver createHtmlUnitDriver(final Capabilities extraCapabilities) {
-        DesiredCapabilities capabilities = DesiredCapabilities.htmlUnit();
-        capabilities.merge(extraCapabilities);
-        capabilities.setJavascriptEnabled(true);
-
-        return new HtmlUnitDriver(capabilities);
     }
 
     /**
